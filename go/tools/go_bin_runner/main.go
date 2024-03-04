@@ -36,18 +36,22 @@ func main() {
 }
 
 func getUserGoEnv() ([]string, error) {
-	goEnvJsonPath, err := runfiles.Rlocation(GoEnvJsonRlocationPath)
-	if err != nil {
-		return nil, err
-	}
-	goEnvJson, err := os.ReadFile(goEnvJsonPath)
-	if err != nil {
-		return nil, err
-	}
 	var goEnv map[string]string
-	err = json.Unmarshal(goEnvJson, &goEnv)
-	if err != nil {
-		return nil, err
+	// Special value set when rules_go is loaded as a WORKSPACE repo, in which
+	// the user-configured Go env isn't available.
+	if GoEnvJsonRlocationPath != "WORKSPACE" {
+		goEnvJsonPath, err := runfiles.Rlocation(GoEnvJsonRlocationPath)
+		if err != nil {
+			return nil, err
+		}
+		goEnvJson, err := os.ReadFile(goEnvJsonPath)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(goEnvJson, &goEnv)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(goEnv) == 0 {
