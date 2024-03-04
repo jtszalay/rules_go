@@ -12,7 +12,6 @@ go_library(
     name = "go_bin_runner_lib",
     srcs = [
         "main.go",
-        "process.go",
     ],
     importpath = "github.com/bazelbuild/rules_go/go/tools/go_bin_runner",
     visibility = ["//visibility:private"],
@@ -28,11 +27,15 @@ go_binary(
         "@platforms//os:windows": "bin/go.exe",
         "//conditions:default": "bin/go",
     }),
-    data = [":go_bin_for_host"],
+    data = [
+        ":go_bin_for_host",
+        "@io_bazel_rules_go_go_env//:go_env.json",
+    ],
     embed = [":go_bin_runner_lib"],
     visibility = ["//go:__pkg__"],
     x_defs = {
         "GoBinRlocationPath": "$(rlocationpath :go_bin_for_host)",
+        "GoEnvJsonRlocationPath": "$(rlocationpath @io_bazel_rules_go_go_env//:go_env.json)",
     },
 )
 

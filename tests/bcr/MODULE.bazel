@@ -38,6 +38,12 @@ go_sdk.nogo(
     nogo = "//:my_nogo",
 )
 
+# Read in go_tool_test.sh.
+go_sdk.env(
+    name = "GOPRIVATE",
+    value = "example.com",
+)
+
 # Bring the default SDK into scope to verify that it exists.
 use_repo(go_sdk, "go_default_sdk")
 

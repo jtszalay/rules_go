@@ -93,6 +93,14 @@ Uses the same format as 'visibility', i.e., every entry must be a label that end
     },
 )
 
+_env_tag = tag_class(
+    doc = "Adds a variable to the environment used to fetch Go dependencies and run the `go` tool.",
+    attrs = {
+        "name": attr.string(mandatory = True),
+        "value": attr.string(mandatory = True),
+    },
+)
+
 # A list of (goos, goarch) pairs that are commonly used for remote executors in cross-platform
 # builds (where host != exec platform). By default, we register toolchains for all of these
 # platforms in addition to the host platform.
@@ -110,13 +118,52 @@ _COMMON_EXEC_PLATFORMS = [
 _MAX_NUM_TOOLCHAINS = 9999
 _TOOLCHAIN_INDEX_PAD_LENGTH = len(str(_MAX_NUM_TOOLCHAINS))
 
-def _go_sdk_impl(ctx):
+def _go_env_repo_impl(ctx):
+    ctx.file("WORKSPACE")
+    ctx.file("BUILD.bazel", """exports_files(["go_env.bzl", "go_env.json"])""")
+
+    # For use by gazelle.
+    ctx.file("go_env.bzl", content = "GO_ENV = " + repr(ctx.attr.go_env))
+
+    # For use by @rules_go//go.
+    ctx.file("go_env.json", content = json.encode_indent(ctx.attr.go_env))
+
+_go_env_repo = repository_rule(
+    implementation = _go_env_repo_impl,
+    attrs = {
+        "go_env": attr.string_dict(),
+    },
+)
+
+def _handle_env_tags(modules):
+    go_env = {}
+    for module in modules:
+        previous_tag = {}
+        for env_tag in module.tags.env:
+            if not module.is_root:
+                fail("go_sdk.env: can only be used in the root module, got", module.tags.env[0])
+            if env_tag.name in previous_tag:
+                fail(
+                    "go_sdk.env: cannot be used more than once with the same name, got",
+                    previous_tag[env_tag.name],
+                    "and",
+                    env_tag,
+                )
+            previous_tag[env_tag.name] = env_tag
+            go_env[env_tag.name] = env_tag.value
+
+    _go_env_repo(
+        name = "io_bazel_rules_go_go_env",
+        go_env = go_env,
+    )
+
+def _handle_nogo_tags(modules):
     nogo_tag = struct(
         nogo = DEFAULT_NOGO,
         includes = NOGO_DEFAULT_INCLUDES,
         excludes = NOGO_DEFAULT_EXCLUDES,
     )
-    for module in ctx.modules:
+    for module in modules:
         if not module.is_root or not module.tags.nogo:
             continue
         if len(module.tags.nogo) > 1:
@@ -143,6 +190,10 @@ def _go_sdk_impl(ctx):
         includes = [str(l) for l in nogo_tag.includes],
         excludes = [str(l) for l in nogo_tag.excludes],
     )
+
+def _go_sdk_impl(ctx):
+    _handle_env_tags(ctx.modules)
+    _handle_nogo_tags(ctx.modules)
 
     multi_version_module = {}
     for module in ctx.modules:
@@ -326,6 +377,7 @@ go_sdk = module_extension(
     implementation = _go_sdk_impl,
     tag_classes = {
         "download": _download_tag,
+        "env": _env_tag,
         "host": _host_tag,
         "nogo": _nogo_tag,
     },
