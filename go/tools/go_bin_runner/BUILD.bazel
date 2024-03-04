@@ -29,13 +29,13 @@ go_binary(
         "//conditions:default": "bin/go",
     }),
     data = [":go_bin_for_host"] + (
-        ["@io_bazel_rules_go_go_env//:go_env.json"] if RULES_GO_IS_BZLMOD_REPO else []
+        ["@io_bazel_rules_go_config//:go_env.json"] if RULES_GO_IS_BZLMOD_REPO else []
     ),
     embed = [":go_bin_runner_lib"],
     visibility = ["//go:__pkg__"],
     x_defs = {
         "GoBinRlocationPath": "$(rlocationpath :go_bin_for_host)",
-        "GoEnvJsonRlocationPath": "$(rlocationpath @io_bazel_rules_go_go_env//:go_env.json)" if RULES_GO_IS_BZLMOD_REPO else "WORKSPACE",
+        "GoEnvJsonRlocationPath": "$(rlocationpath @io_bazel_rules_go_config//:go_env.json)" if RULES_GO_IS_BZLMOD_REPO else "WORKSPACE",
     },
 )
 

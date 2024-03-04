@@ -39,9 +39,8 @@ go_sdk.nogo(
 )
 
 # Read in go_tool_test.sh.
-go_sdk.env(
-    name = "GOPRIVATE",
-    value = "example.com",
+go_sdk.config(
+    go_env = {"GOPRIVATE": "example.com"},
 )
 
 # Bring the default SDK into scope to verify that it exists.

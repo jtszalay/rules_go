@@ -93,11 +93,11 @@ Uses the same format as 'visibility', i.e., every entry must be a label that end
     },
 )
 
-_env_tag = tag_class(
-    doc = "Adds a variable to the environment used to fetch Go dependencies and run the `go` tool.",
+_config_tag = tag_class(
     attrs = {
-        "name": attr.string(mandatory = True),
-        "value": attr.string(mandatory = True),
+        "go_env": attr.string_dict(
+            doc = "The environment variables to set when fetching Go dependencies or running the `go` tool.",
+        ),
     },
 )
 
@@ -118,7 +118,7 @@ _COMMON_EXEC_PLATFORMS = [
 _MAX_NUM_TOOLCHAINS = 9999
 _TOOLCHAIN_INDEX_PAD_LENGTH = len(str(_MAX_NUM_TOOLCHAINS))
 
-def _go_env_repo_impl(ctx):
+def _go_config_repo_impl(ctx):
     ctx.file("WORKSPACE")
     ctx.file("BUILD.bazel", """exports_files(["go_env.bzl", "go_env.json"])""")
 
@@ -128,32 +128,33 @@ def _go_env_repo_impl(ctx):
     # For use by @rules_go//go.
     ctx.file("go_env.json", content = json.encode_indent(ctx.attr.go_env))
 
-_go_env_repo = repository_rule(
-    implementation = _go_env_repo_impl,
+_go_config_repo = repository_rule(
+    implementation = _go_config_repo_impl,
     attrs = {
         "go_env": attr.string_dict(),
     },
 )
 
-def _handle_env_tags(modules):
+def _intersperse_newlines(tags):
+    return [tag for p in zip(tags, len(tags) * ["\n"]) for tag in p]
+
+def _handle_config_tags(modules):
     go_env = {}
     for module in modules:
-        previous_tag = {}
-        for env_tag in module.tags.env:
-            if not module.is_root:
-                fail("go_sdk.env: can only be used in the root module, got", module.tags.env[0])
-            if env_tag.name in previous_tag:
-                fail(
-                    "go_sdk.env: cannot be used more than once with the same name, got",
-                    previous_tag[env_tag.name],
-                    "and",
-                    env_tag,
-                )
-            previous_tag[env_tag.name] = env_tag
-            go_env[env_tag.name] = env_tag.value
+        if not module.tags.config:
+            continue
+        if not module.is_root:
+            fail("go_sdk.config: can only be used in the root module, got", module.tags.env[0])
+        if len(module.tags.config) > 1:
+            # Make use of the special formatting applied to tags by fail.
+            fail(
+                "go_sdk.config: only one tag can be specified per module, got:\n",
+                *_intersperse_newlines(module.tags.config)
+            )
+        go_env = module.tags.config[0].go_env
 
-    _go_env_repo(
-        name = "io_bazel_rules_go_go_env",
+    _go_config_repo(
+        name = "io_bazel_rules_go_config",
         go_env = go_env,
     )
 
@@ -170,7 +171,7 @@ def _handle_nogo_tags(modules):
             # Make use of the special formatting applied to tags by fail.
             fail(
                 "go_sdk.nogo: only one tag can be specified per module, got:\n",
-                *[t for p in zip(module.tags.nogo, len(module.tags.nogo) * ["\n"]) for t in p]
+                *_intersperse_newlines(module.tags.nogo)
             )
         nogo_tag = module.tags.nogo[0]
         for scope in nogo_tag.includes + nogo_tag.excludes:
@@ -192,7 +193,7 @@ def _handle_nogo_tags(modules):
     )
 
 def _go_sdk_impl(ctx):
-    _handle_env_tags(ctx.modules)
+    _handle_config_tags(ctx.modules)
     _handle_nogo_tags(ctx.modules)
 
     multi_version_module = {}
@@ -376,8 +377,8 @@ go_sdk_extra_kwargs = {
 go_sdk = module_extension(
     implementation = _go_sdk_impl,
     tag_classes = {
+        "config": _config_tag,
         "download": _download_tag,
-        "env": _env_tag,
         "host": _host_tag,
         "nogo": _nogo_tag,
     },

@@ -22,7 +22,7 @@ use_repo(
     go_sdk,
     "go_toolchains",
     # These names are ugly on purpose to avoid a conflict with a user-named SDK.
-    "io_bazel_rules_go_go_env",
+    "io_bazel_rules_go_config",
     "io_bazel_rules_nogo",
 )
 
