@@ -53,6 +53,7 @@ compiler. Typically, these are Well Known Types and proto runtime libraries.""",
 by this compiler are buildable on their own. Compilers that just add methods
 to structs produced by other compilers will set this to False.""",
         "internal": "Opaque value containing data used by compile.",
+        "protoc": "test",
     },
 )
 
@@ -181,7 +182,7 @@ def _go_proto_compiler_impl(ctx):
                 options = ctx.attr.options,
                 suffix = ctx.attr.suffix,
                 suffixes = ctx.attr.suffixes,
-                protoc = ctx.executable._protoc,
+                protoc = ctx.executable.protoc,
                 go_protoc = ctx.executable._go_protoc,
                 plugin = ctx.executable.plugin,
                 import_path_option = ctx.attr.import_path_option,
@@ -210,7 +211,7 @@ _go_proto_compiler = rule(
             cfg = "exec",
             default = "//go/tools/builders:go-protoc",
         ),
-        "_protoc": attr.label(
+        "protoc": attr.label(
             executable = True,
             cfg = "exec",
             default = "//proto:protoc",
